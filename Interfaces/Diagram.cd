@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Interface Name="Avae.ViewModels.IViewModelBase" Collapsed="true">
+    <Position X="1" Y="1.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Interfaces\IViewModelBase.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="Avae.ViewModels.ICloseableViewModel&lt;TResult&gt;">
+    <Position X="1" Y="2.5" Width="2.25" />
+    <TypeIdentifier>
+      <HashCode>AAAAAgAAAAAAAEBAAAAAAEAAAAAAAAAAAAAAAACAAAA=</HashCode>
+      <FileName>Interfaces\ICloseableViewModel.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="Avae.ViewModels.IModalFor&lt;T, TResult&gt;">
+    <Position X="4.75" Y="4.25" Width="2" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Interfaces\IModalFor.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="Avae.ViewModels.IViewFor">
+    <Position X="4.75" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAgAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Interfaces\IViewFor.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="Avae.ViewModels.IViewFor&lt;T&gt;">
+    <Position X="4.75" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Interfaces\IViewFor.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>
