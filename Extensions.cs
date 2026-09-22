@@ -5,6 +5,28 @@ namespace Avae.ViewModels;
 
 public static class Extensions
 {
+    /// <summary>
+    /// Registers an independent navigation region: a <see cref="Router"/> resolved as a keyed singleton
+    /// under <paramref name="key"/>. Use this instead of registering <see cref="Router"/> as a plain,
+    /// unkeyed singleton whenever a view model needs more than one independent navigation area (e.g. a
+    /// main pane and a side pane) — resolving an unkeyed singleton twice returns the *same* instance,
+    /// silently merging what were meant to be two separate navigation histories.
+    /// </summary>
+    /// <param name="key">The region's identifier, e.g. "main" or "side". Resolve it later with <see cref="GetRegion"/>.</param>
+    public static IServiceCollection AddNavigationRegion(this IServiceCollection services, string key)
+    {
+        services.AddKeyedSingleton<Router>(key, (sp, _) => new Router(sp));
+        return services;
+    }
+
+    /// <summary>
+    /// Resolves the <see cref="Router"/> registered for <paramref name="key"/> via <see cref="AddNavigationRegion"/>.
+    /// </summary>
+    /// <param name="key">The region's identifier passed to <see cref="AddNavigationRegion"/>.</param>
+    public static Router GetRegion(this IServiceProvider provider, string key)
+        => provider.GetRequiredKeyedService<Router>(key);
+
+
     static T GetOrAdd<T>(this IServiceCollection services) where T : class, new()
     {
         var existing = services
