@@ -2,7 +2,7 @@
 
 public interface INavigable
 {
-    Task<bool> CanNavigateAsync();
-    Task OnNavigatedTo(NavigableContext context);
-    Task OnNavigatedFrom(NavigableContext context);
+    Task<bool> CanNavigateAsync() => Task.FromResult(true);
+    Task OnNavigatedTo(NavigableContext context) => Task.CompletedTask;
+    Task OnNavigatedFrom(NavigableContext context) => Task.CompletedTask;
 }
