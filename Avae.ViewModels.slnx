@@ -2,5 +2,6 @@
   <Folder Name="/Solution Items/">
     <File Path="Directory.Packages.props" />
   </Folder>
+  <Project Path="../Avae.ViewModels.Tests/Avae.ViewModels.Tests.csproj" Id="46baa1ef-a66f-4ca3-b924-0dac12ec471f" />
   <Project Path="Avae.ViewModels.csproj" />
 </Solution>

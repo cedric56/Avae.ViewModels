@@ -27,12 +27,6 @@ public partial class Router(IServiceProvider provider)
     public IViewFor? CurrentView => _currentIndex < 0 ? null : _history[_currentIndex].view;
 
     /// <summary>
-    /// Occurs whenever the current view model changes, whether via <see cref="Back"/>, <see cref="Forward"/>,
-    /// or one of the <c>GoTo</c> overloads.
-    /// </summary>
-    public event Action<object>? CurrentViewModelChanged;
-
-    /// <summary>
     /// Clears all navigation history and resets the current position.
     /// </summary>
     public void EraseHistory()
@@ -51,7 +45,6 @@ public partial class Router(IServiceProvider provider)
 
         _currentIndex--;
         await TransitionTo(leaving, _history[_currentIndex]);
-        CurrentViewModelChanged?.Invoke(CurrentViewModel!);
         return CurrentViewModel;
     }
 
@@ -65,7 +58,6 @@ public partial class Router(IServiceProvider provider)
 
         _currentIndex++;
         await TransitionTo(leaving, _history[_currentIndex]);
-        CurrentViewModelChanged?.Invoke(CurrentViewModel!);
         return CurrentViewModel;
     }
 
@@ -92,8 +84,7 @@ public partial class Router(IServiceProvider provider)
         view.Context = viewModel;       
         var previous = _currentIndex >= 0 ? _history[_currentIndex] : default;        
         await TransitionTo(previous, (viewModel, view, context));
-        AddHistory(viewModel, view, context);
-        CurrentViewModelChanged?.Invoke(viewModel);        
+        AddHistory(viewModel, view, context);    
         return view;
     }
 

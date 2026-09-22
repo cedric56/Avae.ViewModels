@@ -130,6 +130,9 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
         get { return _selectedNavigable; }
         set
         {
+            if (Equals(_selectedNavigable, value)) 
+                return;
+
             var old = _selectedNavigable;
             _selectedNavigable = value;
             _ = OnSelectedNavigableChangedAsync(value, old);
