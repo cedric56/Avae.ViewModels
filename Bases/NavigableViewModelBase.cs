@@ -82,7 +82,7 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
         _selectedNavigable = Navigables.FirstOrDefault(p => p.ViewModelType == type);
         if (_selectedNavigable != null && dico.TryGetValue(_selectedNavigable, out var context))
         {
-            _currentView = context.Key;
+            _currentView = context.view;
         }
         NotifyPropertyChanged(nameof(SelectedNavigable));
         NotifyPropertyChanged(nameof(CurrentView));
@@ -100,7 +100,7 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
     /// Cache mapping each <see cref="NavigableView"/> to the view/view-model pair created for it,
     /// so that previously visited navigables are not recreated.
     /// </summary>
-    private readonly Dictionary<NavigableView, KeyValuePair<IViewFor, object>> dico = [];
+    private readonly Dictionary<NavigableView, (IViewFor view, object viewmodel)> dico = [];
 
     private IViewFor? _currentView = null!;
 
@@ -182,13 +182,12 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
             if (value == null)
                 return;
 
-            if (dico.TryGetValue(value, out var pair))
+            if (dico.TryGetValue(value, out var tuple))
             {
-                var context = await _router.GoTo(pair.Key, pair.Value, value.Context);
-                if (context != null)
+                var view = await _router.GoTo(tuple.view, tuple.viewmodel, value.Context);
+                if (view != null)
                 {
-                    CurrentView = context;
-                    await value.OnFirstAppearance(pair.Value);
+                    CurrentView = view;
                 }
                 else
                 {
@@ -197,12 +196,11 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
             }
             else
             {
-                (IViewFor? context, object viewmodel) result = await GoTo(value);
-                if (result.context != null)
+                var result = await GoTo(value);
+                if (result.view != null)
                 {
-                    dico.Add(value, new KeyValuePair<IViewFor, object>(result.context, result.viewmodel));
-                    await value.OnFirstAppearance(result.viewmodel);
-                    CurrentView = result.context;
+                    dico.Add(value, (result.view, result.viewmodel));
+                    CurrentView = result.view;
                 }
                 else
                 {
@@ -229,18 +227,10 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
     /// <returns>The view resolved for the navigation target.</returns>
     protected virtual async Task<(IViewFor? view, object viewmodel)> GoTo(NavigableView value)
     {
-        object viewModel;
-        IViewFor? viewFor;
-        if (value.ViewModel != null)
-        {
-            viewFor = await _router.GoTo(viewModel = value.ViewModel, context: value.Context);
-        }
+        if (value.ViewModel == null)
+            return await _router.GoToType(value.ViewModelType, context: value.Context);
         else
-        {
-            viewFor = await _router.GoToType(value.ViewModelType, out viewModel, context: value.Context);
-        }
-
-        return (viewFor, viewModel);
+            return await _router.GoTo(value.ViewModel, context: value.Context);
     }
 
     public virtual void Dispose()

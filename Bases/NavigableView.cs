@@ -13,11 +13,6 @@
 public class NavigableView(Type viewModelType, string displayName, string? path = null)
 {
     /// <summary>
-    /// Gets or sets a callback invoked when this page is launched, after its view model has been created.
-    /// </summary>
-    public Func<object, Task>? FirstAppearance { get; set; }
-
-    /// <summary>
     /// Gets the view model instance associated with this page, if one has been explicitly assigned.
     /// </summary>
     public object? ViewModel { get; protected set; }
@@ -65,19 +60,6 @@ public class NavigableView(Type viewModelType, string displayName, string? path 
     /// Gets or sets contextual data passed along when navigating to this page.
     /// </summary>
     public NavigableContext Context { get; set; } = new NavigableContext();
-
-    /// <summary>
-    /// Invokes <see cref="Launched"/>, if set, once this page's view model has been created.
-    /// </summary>
-    /// <param name="viewModel">The view model created for this page.</param>
-    /// <returns>The task returned by <see cref="Launched"/>, or a completed task if no callback is set.</returns>
-    public virtual Task OnFirstAppearance(object viewModel)
-    {
-        if (FirstAppearance == null)
-            return Task.CompletedTask;
-
-        return FirstAppearance(viewModel);
-    }
 }
 
 /// <summary>
@@ -86,12 +68,6 @@ public class NavigableView(Type viewModelType, string displayName, string? path 
 /// <typeparam name="T">The view model type associated with this page.</typeparam>
 public class NavigableView<T> : NavigableView //where T : IViewModelBase
 {
-    /// <summary>
-    /// Gets or sets a callback invoked when this page is launched, after its view model has been created.
-    /// Shadows <see cref="NavigableView.Launched"/> with a strongly typed parameter.
-    /// </summary>
-    public new Func<T, Task>? FirstAppearance { get; set; }
-
     /// <summary>
     /// Initializes a new instance of the <see cref="NavigableView{T}"/> class with no pre-existing view model.
     /// </summary>
@@ -117,19 +93,5 @@ public class NavigableView<T> : NavigableView //where T : IViewModelBase
         : base(typeof(T), displayName, icon)
     {
         ViewModel = viewModel;
-    }
-
-    /// <summary>
-    /// Invokes the strongly typed <see cref="FirstAppearance"/> callback, if set, casting
-    /// <paramref name="viewModel"/> to <typeparamref name="T"/>.
-    /// </summary>
-    /// <param name="viewModel">The view model created for this page.</param>
-    /// <returns>The task returned by <see cref="FirstAppearance"/>, or a completed task if no callback is set.</returns>
-    public override Task OnFirstAppearance(object viewModel)
-    {
-        if (FirstAppearance == null)
-            return Task.CompletedTask;
-
-        return FirstAppearance((T)viewModel);
     }
 }

@@ -95,21 +95,10 @@ public partial class Router(IServiceProvider provider)
     /// <typeparam name="TBaseType">The base type of the view model.</typeparam>
     /// <param name="viewModelType">The view model type.</param>
     /// <returns>The created view model cast to the <typeparamref name="TBaseType"/>.</returns>        
-    public Task<IViewFor?> GoToType(Type viewModelType, out object viewModel, string? key = null, NavigableContext? context = null)
+    public async Task<(IViewFor? view, object viewmodel)> GoToType(Type viewModelType, string? key = null, NavigableContext? context = null)
     {
-        viewModel = provider.GetViewModel(viewModelType, context);
-        return GoToCore(key ?? viewModelType.Name, viewModel, context);
-    }
-
-    /// <summary>
-    /// Navigates to the view associated with the specified view model type, without exposing the created view model.
-    /// </summary>
-    /// <param name="viewModelType">The view model type to navigate to.</param>
-    /// <param name="context">Optional navigation context supplying parameters for the view model, view, and factory.</param>
-    /// <returns>The view resolved for the created view model.</returns>
-    public Task<IViewFor?> GoToType(Type viewModelType, string? key = null, NavigableContext? context = null)
-    {
-        return GoToType(viewModelType, out var _, key, context);
+        var viewModel = provider.GetViewModel(viewModelType, context);
+        return (await GoToCore(key ?? viewModelType.Name, viewModel, context), viewModel);
     }
 
     /// <summary>
@@ -119,11 +108,11 @@ public partial class Router(IServiceProvider provider)
     /// <param name="viewModel">The existing view model instance to navigate to.</param>
     /// <param name="context">Optional navigation context supplying parameters for the view.</param>
     /// <returns>The view resolved for <paramref name="viewModel"/>.</returns>
-    public Task<IViewFor?> GoTo<TViewModel>(TViewModel viewModel, string? key = null, NavigableContext? context = null) where TViewModel : class
+    public async Task<(IViewFor? view, TViewModel viewmodel)> GoTo<TViewModel>(TViewModel viewModel, string? key = null, NavigableContext? context = null) where TViewModel : class
     {
         if (viewModel == null)
             throw new InvalidOperationException("Viewmodel must not be null");
-        return GoToCore(key ?? typeof(TViewModel).Name, viewModel, context);
+        return (await GoToCore(key ?? typeof(TViewModel).Name, viewModel, context), viewModel);
     }
 
     /// <summary>
@@ -131,10 +120,10 @@ public partial class Router(IServiceProvider provider)
     /// </summary>
     /// <typeparam name="TViewModel">The type of the view model.</typeparam>
     /// <returns>The created view model.</returns>
-    public Task<IViewFor?> GoTo<TViewModel>(out TViewModel viewModel, string? key = null, NavigableContext? context = null) where TViewModel : class
+    public async Task<(IViewFor? view, TViewModel viewmodel)> GoTo<TViewModel>(string? key = null, NavigableContext? context = null) where TViewModel : class
     {
-        viewModel = provider.GetViewModel<TViewModel>(context)!;
-        return GoToCore(key ?? typeof(TViewModel).Name, viewModel, context);
+        var viewModel = provider.GetViewModel<TViewModel>(context)!;
+        return (await GoToCore(key ?? typeof(TViewModel).Name, viewModel, context), viewModel);
     }
 
     /// <summary>
