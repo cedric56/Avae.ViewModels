@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows.Input;
 
 namespace Avae.ViewModels;
@@ -61,7 +62,7 @@ public abstract partial class NavigableViewModelBase<TResult>(Router router, boo
 /// Base class for a view model that manages navigation between a set of <see cref="NavigableView"/> items,
 /// caching the view/view-model pair for each one as it is visited.
 /// </summary>
-public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDisposable
+public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDisposable, INavigable
 {
     /// <summary>
     /// Occurs when the currently displayed view changes.
@@ -80,7 +81,8 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
 
         var type = viewModel.GetType();
         _selectedNavigable = Navigables.FirstOrDefault(p => p.ViewModelType == type);
-        if (_selectedNavigable != null && dico.TryGetValue(_selectedNavigable, out var context))
+        if (_selectedNavigable != null && 
+            dico.TryGetValue(_selectedNavigable, out var context))
         {
             _currentView = context.view;
         }
@@ -119,23 +121,50 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
         }
     }
 
+    //private NavigableView? _selectedNavigable;
+
+    ///// <summary>
+    ///// Gets or sets the currently selected navigable item. Setting this property triggers navigation
+    ///// to the corresponding view via <see cref="OnSelectedNavigableChangedAsync(NavigableView?, NavigableView?)"/>.
+    ///// </summary>
+    //public NavigableView? SelectedNavigable
+    //{
+    //    get { return _selectedNavigable; }
+    //    set
+    //    {
+    //        if (Equals(_selectedNavigable, value))
+    //            return;
+
+    //        var old = _selectedNavigable;
+    //        _selectedNavigable = value;
+    //        _ = OnSelectedNavigableChangedAsync(value, old);
+    //    }
+    //}
+
+    private Task _pendingSelection = Task.CompletedTask;
+    private readonly object _selectionLock = new();
+
     private NavigableView? _selectedNavigable;
 
-    /// <summary>
-    /// Gets or sets the currently selected navigable item. Setting this property triggers navigation
-    /// to the corresponding view via <see cref="OnSelectedNavigableChangedAsync(NavigableView?, NavigableView?)"/>.
-    /// </summary>
     public NavigableView? SelectedNavigable
     {
-        get { return _selectedNavigable; }
+        get => _selectedNavigable;
         set
         {
-            if (Equals(_selectedNavigable, value)) 
+            if (Equals(_selectedNavigable, value))
                 return;
-
             var old = _selectedNavigable;
             _selectedNavigable = value;
-            _ = OnSelectedNavigableChangedAsync(value, old);
+
+            // Chaîne l'appel sur le précédent au lieu de le lancer en fire-and-forget isolé :
+            // garantit qu'une sélection ne démarre jamais avant que la précédente soit
+            // complètement terminée — le même effet que .Concat() côté Rx, sans dépendance.
+            lock (_selectionLock)
+            {
+                _pendingSelection = _pendingSelection.ContinueWith(
+                    _ => OnSelectedNavigableChangedAsync(value, old),
+                    TaskScheduler.Default).Unwrap();
+            }
         }
     }
 
@@ -151,9 +180,7 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
         : base(router)
     {
         if (initialize)
-        {
-            SelectedNavigable = Navigables.FirstOrDefault();
-        }
+            _ = OnSelectedNavigableChangedAsync(Navigables.FirstOrDefault(), null);
     }
 
     private ObservableCollection<NavigableView>? _navigables;
@@ -175,44 +202,55 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
     /// view/view-model pair, updating <see cref="CurrentView"/>, and recording navigation history.
     /// </summary>
     /// <param name="value">The newly selected navigable item, or <see langword="null"/> if none is selected.</param>    
-    private async Task OnSelectedNavigableChangedAsync(NavigableView? value, NavigableView? old)
+    public virtual async Task OnSelectedNavigableChangedAsync(NavigableView? value, NavigableView? old)
     {
         try
         {
             if (value == null)
                 return;
 
-            if (dico.TryGetValue(value, out var tuple))
+            var view = await GetView(value);
+            if(view != null)
             {
-                var view = await _router.GoTo(tuple.view, tuple.viewmodel, value.Context);
-                if (view != null)
-                {
-                    CurrentView = view;
-                }
-                else
-                {
-                    _selectedNavigable = old;
-                }
+                CurrentView = view;
             }
             else
             {
-                var result = await GoTo(value);
-                if (result.view != null)
-                {
-                    dico.Add(value, (result.view, result.viewmodel));
-                    CurrentView = result.view;
-                }
-                else
-                {
-                    _selectedNavigable = old;
-                }
+                _selectedNavigable = old;
             }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
         }
         finally
         {
             RaiseCanExecutesChanged();
             NotifyPropertyChanged(nameof(SelectedNavigable));
+        }   
+    }
+
+    protected virtual async Task<IViewFor?> GetView(NavigableView value)
+    {
+        if (dico.TryGetValue(value, out var context))
+        {
+            var view = await _router.GoTo(context.view, context.viewmodel, value.Context);
+            if (view != null)
+            {
+                return view;
+            }
         }
+        else
+        {
+            var result = await GoTo(value);
+            if (result.view != null)
+            {
+                dico.Add(value, (result.view, result.viewmodel));
+                return result.view;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -225,7 +263,7 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
     /// existing view model, or a newly created one.
     /// </param>
     /// <returns>The view resolved for the navigation target.</returns>
-    protected virtual async Task<(IViewFor? view, object viewmodel)> GoTo(NavigableView value)
+    private async Task<(IViewFor? view, object viewmodel)> GoTo(NavigableView value)
     {
         if (value.ViewModel == null)
             return await _router.GoToType(value.ViewModelType, context: value.Context);

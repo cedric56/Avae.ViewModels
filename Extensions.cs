@@ -137,9 +137,9 @@ public static class Extensions
         string? key = null)
         where TView : class where TViewModel : class
         => services.RegisterPageCore<TView, TViewModel>(
-            key, (sp, args) => func(sp, args.Resolve<TView, TArg1>(0)), viewModelLifetime, viewLifetime);
+            key, (sp, args) => func(sp, args.Resolve<TArg1>(0)), viewModelLifetime, viewLifetime);
 
-    private static T Resolve<TView, T>(this object[] args, int index)
+    private static T Resolve<T>(this object[] args, int index)
     {
         if (index < 0 || index >= args.Length)
             throw new ArgumentException($"Invalid index : {index} but length is : {args.Length}");
@@ -159,7 +159,7 @@ public static class Extensions
         string? key = null)
         where TView : class where TViewModel : class
         => services.RegisterPageCore<TView, TViewModel>(
-            key, (sp, args) => func(sp, args.Resolve<TView, TArg1>(0), args.Resolve<TView, TArg2>(1)), viewModelLifetime, viewLifetime);
+            key, (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1)), viewModelLifetime, viewLifetime);
 
     public static void RegisterWithLifetime<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TView,
@@ -172,7 +172,7 @@ public static class Extensions
         string? key = null)
         where TView : class where TViewModel : class
         => services.RegisterPageCore<TView, TViewModel>(
-            key, (sp, args) => func(sp, args.Resolve<TView, TArg1>(0), args.Resolve<TView, TArg2>(1), args.Resolve<TView, TArg3>(2)),
+            key, (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1), args.Resolve<TArg3>(2)),
             viewModelLifetime, viewLifetime);
 
     public static void RegisterWithLifetime<
@@ -186,7 +186,7 @@ public static class Extensions
         string? key = null)
         where TView : class where TViewModel : class
         => services.RegisterPageCore<TView, TViewModel>(
-            key, (sp, args) => func(sp, args.Resolve<TView, TArg1>(0), args.Resolve<TView, TArg2>(1), args.Resolve<TView, TArg3>(2), args.Resolve<TView, TArg4>(3)),
+            key, (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1), args.Resolve<TArg3>(2), args.Resolve<TArg4>(3)),
             viewModelLifetime, viewLifetime);
 
     public static void RegisterWithLifetime<
@@ -200,7 +200,7 @@ public static class Extensions
         string? key = null)
         where TView : class where TViewModel : class
         => services.RegisterPageCore<TView, TViewModel>(
-            key, (sp, args) => func(sp, args.Resolve<TView, TArg1>(0), args.Resolve<TView, TArg2>(1), args.Resolve<TView, TArg3>(2), args.Resolve<TView, TArg4>(3), args.Resolve<TView, TArg5>(4)),
+            key, (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1), args.Resolve<TArg3>(2), args.Resolve<TArg4>(3), args.Resolve<TArg5>(4)),
             viewModelLifetime, viewLifetime);
 
     public static void RegisterWithLifetime<
@@ -241,7 +241,7 @@ public static class Extensions
         var factory = provider.GetKeyedService<Func<IServiceProvider, object[], object>>(key)
             ?? throw new InvalidOperationException($"Unable to create {key}. Ensure that it is registered with the service provider.");
 
-        return factory(provider, [.. context?.ViewModelParameters ?? []])
+        return factory(provider, [.. context?.ViewModelParameters.Select(v => v.value).ToArray() ?? []])
             ?? throw new InvalidOperationException($"Factory for {key} returned null.");
     }
 
@@ -262,7 +262,7 @@ public static class Extensions
         if (resolvedKey is not string stringKey)
             throw new InvalidOperationException($"GetContextFor requires a string key, got {resolvedKey?.GetType().Name ?? "null"}.");
 
-        var view = provider.GetView(stringKey, [.. context.ViewParameters ?? []]);
+        var view = provider.GetView(stringKey, [.. context.ViewParameters.Select(v => v.value).ToArray() ?? []]);
         return view as IViewFor
             ?? throw new InvalidOperationException($"View must implement {nameof(IViewFor)}");
     }
