@@ -7,4 +7,15 @@
     </Compile>
   </ItemGroup>
 
+  <ItemGroup Condition="$(AvaeFeatures.Contains(';ReactiveUI;'))">
+    <PackageReference Include="ReactiveUI" />
+    <PackageReference Include="ReactiveUI.SourceGenerators">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <Compile Include="$(MSBuildThisFileDirectory)..\lib\net11.0\ReactiveUI\**\*.cs">
+      <Visible>false</Visible>
+    </Compile>
+  </ItemGroup>
+  
 </Project>

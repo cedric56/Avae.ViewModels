@@ -12,18 +12,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="build\**"
-     Pack="true"
-     PackagePath="buildTransitive\" />
+    <None Include="build\**" Pack="true" PackagePath="buildTransitive\" />
     <Compile Remove="Community\**" />
     <TfmSpecificPackageFile Include="Community\**">
       <PackagePath>lib\$(TargetFramework)\Community\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+    </TfmSpecificPackageFile>
+    <Compile Remove="ReactiveUI\**" />
+    <TfmSpecificPackageFile Include="ReactiveUI\**">
+      <PackagePath>lib\$(TargetFramework)\ReactiveUI\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
       <PackageCopyToOutput>true</PackageCopyToOutput>
     </TfmSpecificPackageFile>
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <!--<InternalsVisibleTo Include="..\Avae.ViewModels.Tests\Avae.ViewModels.csproj"/>-->
   </ItemGroup>
 </Project>
