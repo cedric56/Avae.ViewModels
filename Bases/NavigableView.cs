@@ -32,6 +32,8 @@ public class NavigableView(Type viewModelType, string displayName, string? path 
     /// </summary>
     public string? Path { get; } = path;
 
+    public string Href { get; set; } = viewModelType.Name;
+
     /// <summary>
     /// Gets the icon resolved from <see cref="Path"/>, or <see langword="null"/> if no path is set.
     /// </summary>

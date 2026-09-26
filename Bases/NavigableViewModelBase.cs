@@ -180,7 +180,7 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
         : base(router)
     {
         if (initialize)
-            _ = OnSelectedNavigableChangedAsync(Navigables.FirstOrDefault(), null);
+            SelectedNavigable = Navigables.FirstOrDefault();
     }
 
     private ObservableCollection<NavigableView>? _navigables;
