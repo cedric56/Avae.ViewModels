@@ -15,7 +15,17 @@ public static class Extensions
     /// <param name="key">The region's identifier, e.g. "main" or "side". Resolve it later with <see cref="GetRegion"/>.</param>
     public static IServiceCollection AddNavigationRegion(this IServiceCollection services, string key)
     {
-        services.AddKeyedSingleton<Router>(key, (sp, _) => new Router(sp));
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        services.AddKeyedSingleton<NavigationHistory>(key);
+        services.AddKeyedSingleton<NavigationGate>(key);
+        services.AddKeyedSingleton<NavigationLifecycle>(key);
+        services.AddKeyedSingleton<Router>(key, (sp, k) => 
+            new Router(
+            sp.GetRequiredKeyedService<NavigationHistory>(k),
+            sp.GetRequiredKeyedService<NavigationGate>(k),
+            sp.GetRequiredKeyedService<NavigationLifecycle>(k),
+            sp));
         return services;
     }
 
@@ -220,7 +230,7 @@ public static class Extensions
         this IServiceCollection services, string? key = null)
         where TView : class where TViewModel : class
         => services.RegisterWithLifetime<TView, TViewModel>(
-            ServiceLifetime.Singleton, ServiceLifetime.Transient, key);
+            ServiceLifetime.Singleton, ServiceLifetime.Singleton, key);
 
     private static void RegisterViewModel<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TViewModel>(

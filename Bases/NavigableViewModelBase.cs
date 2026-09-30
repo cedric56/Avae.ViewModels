@@ -121,29 +121,6 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
         }
     }
 
-    //private NavigableView? _selectedNavigable;
-
-    ///// <summary>
-    ///// Gets or sets the currently selected navigable item. Setting this property triggers navigation
-    ///// to the corresponding view via <see cref="OnSelectedNavigableChangedAsync(NavigableView?, NavigableView?)"/>.
-    ///// </summary>
-    //public NavigableView? SelectedNavigable
-    //{
-    //    get { return _selectedNavigable; }
-    //    set
-    //    {
-    //        if (Equals(_selectedNavigable, value))
-    //            return;
-
-    //        var old = _selectedNavigable;
-    //        _selectedNavigable = value;
-    //        _ = OnSelectedNavigableChangedAsync(value, old);
-    //    }
-    //}
-
-    private Task _pendingSelection = Task.CompletedTask;
-    private readonly object _selectionLock = new();
-
     private NavigableView? _selectedNavigable;
 
     public NavigableView? SelectedNavigable
@@ -156,15 +133,7 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
             var old = _selectedNavigable;
             _selectedNavigable = value;
 
-            // Chaîne l'appel sur le précédent au lieu de le lancer en fire-and-forget isolé :
-            // garantit qu'une sélection ne démarre jamais avant que la précédente soit
-            // complètement terminée — le même effet que .Concat() côté Rx, sans dépendance.
-            lock (_selectionLock)
-            {
-                _pendingSelection = _pendingSelection.ContinueWith(
-                    _ => OnSelectedNavigableChangedAsync(value, old),
-                    TaskScheduler.Default).Unwrap();
-            }
+            _ = OnSelectedNavigableChangedAsync(value, old);
         }
     }
 
@@ -276,6 +245,11 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
 
     public virtual void Dispose()
     {
+        foreach (var pair in dico.Values)
+        {
+            (pair.viewmodel as IDisposable)?.Dispose();
+            (pair.view as IDisposable)?.Dispose();
+        }
         dico.Clear();
 
         _navigables?.Clear();
