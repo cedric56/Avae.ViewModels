@@ -67,7 +67,7 @@ Both features can be enabled when needed:
 
 | Type | Role |
 |------|------|
-| `Router` / `IRouter` | Navigation history, `GoTo`, `BackAsync`, `ForwardAsync`, and lifecycle transitions |
+| `IRouter` | Navigation history, `GoTo`, `BackAsync`, `ForwardAsync`, and lifecycle transitions |
 | `IViewFor` | UI-independent view abstraction; exposes the current view-model through `Context` |
 | `INavigable` | Optional navigation guard and lifecycle callbacks |
 | `NavigableContext` | Parameters supplied while creating/navigating to a view or view-model |
@@ -86,7 +86,7 @@ Navigation is **view-model first**: the application navigates to a view-model ty
 using Avae.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
-services.AddNavigation();
+services.RegisterNavigation();
 
 services.Register<HomeView, HomeViewModel>();
 services.Register<SettingsView, SettingsViewModel>();
@@ -140,7 +140,6 @@ if (router.CanGoBack)
 if (router.CanGoForward)
     await router.ForwardAsync();
 
-router.EraseHistory();
 ```
 
 The default history limit is 20 entries.
@@ -195,7 +194,7 @@ If an application needs two independent panes, do not resolve the same unkeyed `
 public partial class MainViewModel(IRouter router)
     : NavigableViewModelBase(router)
 {
-    public override ObservableCollection<NavigableView> Navigables { get; } =
+    protected override ObservableCollection<NavigableView> GetNavigables() =>
     [
         new NavigableView<HomeViewModel>("Home", "fa-house"),
         new NavigableView<SettingsViewModel>("Settings", "fa-gear"),
@@ -258,7 +257,7 @@ the package includes the sources under `ReactiveUI/`, including ReactiveUI-backe
 ## Project layout
 
 ```text
-Router.cs
+Navigation/Router.cs
 Extensions.cs
 ViewModelViewMap.cs
 
