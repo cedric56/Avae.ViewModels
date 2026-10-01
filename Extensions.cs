@@ -5,6 +5,22 @@ namespace Avae.ViewModels;
 
 public static class Extensions
 {
+    public static void RegisterNavigation(this IServiceCollection services)
+    {
+        services.AddTransient<NavigationHistory>();
+        services.AddTransient<NavigationGate>();
+        services.AddTransient<NavigationLifecycle>();
+        services.AddTransient<IRouter, Router>();
+    }
+
+    public static void RegisterEnvironments(this IServiceCollection services,
+        Runtime runtime)
+    {
+        services.AddSingleton<IRuntime>(new RuntimeImplementation(runtime));
+        services.AddSingleton<IDesktop>(new DesktopImplementation());
+        services.AddSingleton<IDistribution>(new DistributionImplementation());
+    }
+
     /// <summary>
     /// Registers an independent navigation region: a <see cref="Router"/> resolved as a keyed singleton
     /// under <paramref name="key"/>. Use this instead of registering <see cref="Router"/> as a plain,
@@ -20,7 +36,7 @@ public static class Extensions
         services.AddKeyedSingleton<NavigationHistory>(key);
         services.AddKeyedSingleton<NavigationGate>(key);
         services.AddKeyedSingleton<NavigationLifecycle>(key);
-        services.AddKeyedSingleton<Router>(key, (sp, k) => 
+        services.AddKeyedSingleton<IRouter, Router>(key, (sp, k) => 
             new Router(
             sp.GetRequiredKeyedService<NavigationHistory>(k),
             sp.GetRequiredKeyedService<NavigationGate>(k),
@@ -33,8 +49,8 @@ public static class Extensions
     /// Resolves the <see cref="Router"/> registered for <paramref name="key"/> via <see cref="AddNavigationRegion"/>.
     /// </summary>
     /// <param name="key">The region's identifier passed to <see cref="AddNavigationRegion"/>.</param>
-    public static Router GetRegion(this IServiceProvider provider, string key)
-        => provider.GetRequiredKeyedService<Router>(key);
+    public static IRouter GetRegion(this IServiceProvider provider, string key)
+        => provider.GetRequiredKeyedService<IRouter>(key);
 
 
     static T GetOrAdd<T>(this IServiceCollection services) where T : class, new()

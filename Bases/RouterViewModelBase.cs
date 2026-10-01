@@ -8,13 +8,13 @@ public abstract class RouterViewModelBase
     /// <summary>
     /// The router used to navigate backward and forward through view model history.
     /// </summary>
-    protected Router _router;
+    protected IRouter _router;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RouterViewModelBase"/> class.
     /// </summary>
     /// <param name="router">The router used to manage navigation history.</param>
-    public RouterViewModelBase(Router router)
+    public RouterViewModelBase(IRouter router)
     {
         _router = router;
     }

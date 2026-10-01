@@ -2,15 +2,47 @@
 
 namespace Avae.ViewModels;
 
+public interface IRouter
+{
+    bool CanGoBack { get; }
+    bool CanGoForward { get; }
+    Task<object?> BackAsync();
+    Task<object?> ForwardAsync();
+
+    Task<IViewFor?> GoTo(IViewFor view, object viewModel, NavigableContext? context = null);
+
+    Task<(IViewFor? view, object viewmodel)> GoToType(
+        Type viewModelType,
+        string? key = null,
+        NavigableContext? context = null);
+
+    /// <summary>
+    /// Navigates to the view associated with an existing view model instance.
+    /// </summary>
+    Task<(IViewFor? view, TViewModel viewmodel)> GoTo<TViewModel>(
+        TViewModel viewModel,
+        string? key = null,
+        NavigableContext? context = null)
+        where TViewModel : class;
+
+    /// <summary>
+    /// Navigates to the view associated with the specified view model type.
+    /// </summary>
+    Task<(IViewFor? view, TViewModel viewmodel)> GoTo<TViewModel>(
+        string? key = null,
+        NavigableContext? context = null)
+        where TViewModel : class;
+}
+
 /// <summary>
 /// Provides ViewModel-first navigation with history and lifecycle callbacks.
 /// Navigation operations are serialized per router instance.
 /// </summary>
-public partial class Router(
+internal class Router(
     NavigationHistory history,
     NavigationGate gate,
     NavigationLifecycle lifecycle,
-    IServiceProvider provider)
+    IServiceProvider provider) : IRouter
 {
     public bool CanGoBack => history.CanGoBack;
     public bool CanGoForward => history.CanGoForward;

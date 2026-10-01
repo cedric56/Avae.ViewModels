@@ -18,7 +18,7 @@ public abstract partial class CloseableViewModel<TResult>
 }
 
 [INotifyPropertyChanged]
-public abstract partial class NavigableViewModel(Router router, bool initialize = true) :
+public abstract partial class NavigableViewModel(IRouter router, bool initialize = true) :
 NavigableViewModelBase(router, initialize)
 {
     [RelayCommand]
@@ -46,7 +46,7 @@ NavigableViewModelBase(router, initialize)
 }
 
 [INotifyPropertyChanged]
-public abstract partial class NavigableViewModel<TResult>(Router router, bool initialize = true) :
+public abstract partial class NavigableViewModel<TResult>(IRouter router, bool initialize = true) :
     NavigableViewModelBase<TResult>(router, initialize)
 {
     private ICommand? _closeCommand = null;

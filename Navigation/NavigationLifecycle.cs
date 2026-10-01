@@ -1,6 +1,6 @@
 ﻿namespace Avae.ViewModels;
 
-public sealed class NavigationLifecycle
+internal sealed class NavigationLifecycle
 {
     public async Task<bool> CanLeaveAsync(NavigationEntry entry)
     {

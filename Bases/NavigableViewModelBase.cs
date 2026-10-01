@@ -12,7 +12,7 @@ namespace Avae.ViewModels;
 /// <param name="initialize">
 /// If <see langword="true"/>, the first available navigable item is selected automatically on construction.
 /// </param>
-public abstract partial class NavigableViewModelBase<TResult>(Router router, bool initialize = true) :
+public abstract partial class NavigableViewModelBase<TResult>(IRouter router, bool initialize = true) :
     NavigableViewModelBase(router, initialize),
     ICloseableViewModel<TResult>    
 {
@@ -145,7 +145,7 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
     /// If <see langword="true"/>, <see cref="SelectedNavigable"/> is set to the first available
     /// navigable item on construction.
     /// </param>
-    public NavigableViewModelBase(Router router, bool initialize = true)
+    public NavigableViewModelBase(IRouter router, bool initialize = true)
         : base(router)
     {
         if (initialize)

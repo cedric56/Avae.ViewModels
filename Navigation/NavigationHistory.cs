@@ -1,11 +1,11 @@
 ﻿namespace Avae.ViewModels;
 
-public sealed record NavigationEntry(
+internal sealed record NavigationEntry(
     object ViewModel,
     IViewFor View,
     NavigableContext Context);
 
-public sealed class NavigationHistory
+internal sealed class NavigationHistory
 {
     public const int MaxSize = 20;
 

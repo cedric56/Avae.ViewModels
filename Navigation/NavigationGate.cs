@@ -1,6 +1,6 @@
 ﻿namespace Avae.ViewModels;
 
-public sealed class NavigationGate
+internal sealed class NavigationGate
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly AsyncLocal<bool> _inProgress = new();
