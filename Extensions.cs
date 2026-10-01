@@ -158,7 +158,6 @@ public static class Extensions
         viewKey = keys.viewKey;
         viewModelKey = keys.viewModelKey;
 
-        services.GetOrAdd<ViewModelViewMap>().Map<TView, TViewModel>(viewKey);
         services.RegisterViewModel<TViewModel>(viewModelKey, viewModelLifetime);
         services.RegisterFactory(viewKey, viewLifetime, createView);
     }
