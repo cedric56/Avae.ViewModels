@@ -86,7 +86,7 @@ Navigation is **view-model first**: the application navigates to a view-model ty
 using Avae.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
-services.AddSingleton<Router>();
+services.AddNavigation();
 
 services.Register<HomeView, HomeViewModel>();
 services.Register<SettingsView, SettingsViewModel>();
@@ -107,7 +107,7 @@ Unless explicitly overridden, the navigation key is the view-model type name, fo
 ### 2. Navigate
 
 ```csharp
-var router = sp.GetRequiredService<Router>();
+var router = sp.GetRequiredService<IRouter>();
 
 // Create the view-model through DI.
 var (view, vm) = await router.GoTo<HomeViewModel>();
@@ -192,7 +192,7 @@ If an application needs two independent panes, do not resolve the same unkeyed `
 `NavigableViewModelBase` can be used for a shell that exposes a collection of navigation entries and the current view:
 
 ```csharp
-public partial class MainViewModel(Router router)
+public partial class MainViewModel(IRouter router)
     : NavigableViewModelBase(router)
 {
     public override ObservableCollection<NavigableView> Navigables { get; } =
