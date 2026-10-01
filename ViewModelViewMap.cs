@@ -4,8 +4,8 @@ namespace Avae.ViewModels;
 
 class ViewModelViewMap : IDisposable
 {
-    private readonly Dictionary<string, KeyValuePair<Type, Type>> _map = new();
-    public void Map<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TView, TViewModel>(string key) where TViewModel : class where TView : class
+    private readonly Dictionary<object, KeyValuePair<Type, Type>> _map = new();
+    public void Map<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TView, TViewModel>(object key) where TViewModel : class where TView : class
         => _map[key] = new KeyValuePair<Type, Type>(typeof(TView), typeof(TViewModel));
 
     [UnconditionalSuppressMessage("Trimming", "IL2073",
@@ -13,7 +13,7 @@ class ViewModelViewMap : IDisposable
                          "dont le paramètre TView porte déjà [DynamicallyAccessedMembers(PublicConstructors)]. " +
                          "L'invariant est donc garanti à l'écriture, mais non traçable par le linker à travers le Dictionary<Type,Type>.")]
     [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
-    public Type? GetViewType(string key)
+    public Type? GetViewType(object key)
      => _map.GetValueOrDefault(key).Key;
 
     public void Dispose()

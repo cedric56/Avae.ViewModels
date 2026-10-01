@@ -67,12 +67,19 @@ public static class Extensions
         return map;
     }
 
-    public static Task<TResult?> ShowModalAsync<TViewModel, TResult>(
+    public static Task<TResult?> ShowModalAsync<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TViewModel, TResult>(
         this IServiceProvider provider,
-        NavigableContext? context = null) where TViewModel : ICloseableViewModel<TResult>
+        NavigableContext? context = null,
+        object? viewKey = null,
+        object? viewModelKey = null) where TViewModel : class, ICloseableViewModel<TResult>
     {
-        var viewModel = provider.GetViewModel<TViewModel>(context);
-        var view = provider.GetModalFor<TViewModel, TResult>(context ?? new NavigableContext()) ?? throw new InvalidOperationException($"Unable to create view for {typeof(TViewModel).Name}.  Ensure that it is registered in the container.");
+        var keys = ViewKey.GetKeys(viewKey, viewModelKey, typeof(TViewModel));
+        viewKey = keys.viewKey;
+        viewModelKey = keys.viewModelKey;
+
+        var viewModel = provider.GetViewModel<TViewModel>(viewModelKey, context);
+        var view = provider.GetModalFor<TViewModel, TResult>(context ?? new NavigableContext(), viewKey) ?? throw new InvalidOperationException($"Unable to create view for {typeof(TViewModel).Name}.  Ensure that it is registered in the container.");
         view.Context = viewModel;
         return view.ShowModalAsync();
     }
@@ -84,10 +91,11 @@ public static class Extensions
     Func<IServiceProvider, TView> func,
     ServiceLifetime viewModelLifetime = ServiceLifetime.Transient,
     ServiceLifetime viewLifetime = ServiceLifetime.Transient,
-    string? key = null)
+    object? viewKey = null,
+    object? viewModelKey = null)
     where TView : class where TViewModel : class
     => services.RegisterPageCore<TView, TViewModel>(
-        key, (sp, args) => func(sp), viewModelLifetime, viewLifetime);
+        (sp, args) => func(sp), viewModelLifetime, viewLifetime, viewKey, viewModelKey);
 
     private static void RegisterFactory<T>(
         this IServiceCollection services,
@@ -138,18 +146,21 @@ public static class Extensions
     private static void RegisterPageCore<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TView,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TViewModel>(
-        this IServiceCollection services,
-        string? key,
+        this IServiceCollection services,        
         Func<IServiceProvider, object[], TView> createView,
         ServiceLifetime viewModelLifetime,
-        ServiceLifetime viewLifetime)
+        ServiceLifetime viewLifetime,
+        object? viewKey = null,
+        object? viewModelKey = null)
         where TView : class where TViewModel : class
     {
-        key ??= typeof(TViewModel).Name;
+        var keys = ViewKey.GetKeys(viewKey, viewModelKey, typeof(TViewModel));
+        viewKey = keys.viewKey;
+        viewModelKey = keys.viewModelKey;
 
-        services.GetOrAdd<ViewModelViewMap>().Map<TView, TViewModel>(key);
-        services.RegisterViewModel<TViewModel>(viewModelLifetime);
-        services.RegisterFactory(key, viewLifetime, createView);
+        services.GetOrAdd<ViewModelViewMap>().Map<TView, TViewModel>(viewKey);
+        services.RegisterViewModel<TViewModel>(viewModelKey, viewModelLifetime);
+        services.RegisterFactory(viewKey, viewLifetime, createView);
     }
 
     public static void RegisterWithLifetime<
@@ -160,10 +171,18 @@ public static class Extensions
         Func<IServiceProvider, TArg1, TView> func,
         ServiceLifetime viewModelLifetime = ServiceLifetime.Transient,
         ServiceLifetime viewLifetime = ServiceLifetime.Transient,
-        string? key = null)
+        object? viewKey = null,
+        object? viewModelKey = null)
         where TView : class where TViewModel : class
-        => services.RegisterPageCore<TView, TViewModel>(
-            key, (sp, args) => func(sp, args.Resolve<TArg1>(0)), viewModelLifetime, viewLifetime);
+    {
+        var keys = ViewKey.GetKeys(viewKey, viewModelKey, typeof(TViewModel));
+        viewKey = keys.viewKey;
+        viewModelKey = keys.viewModelKey;
+
+        services.RegisterPageCore<TView, TViewModel>(
+            (sp, args) => func(sp, args.Resolve<TArg1>(0)), viewModelLifetime, viewLifetime,
+            viewKey, viewModelKey);
+    }
 
     private static T Resolve<T>(this object[] args, int index)
     {
@@ -182,10 +201,11 @@ public static class Extensions
         Func<IServiceProvider, TArg1, TArg2, TView> func,
         ServiceLifetime viewModelLifetime = ServiceLifetime.Transient,
         ServiceLifetime viewLifetime = ServiceLifetime.Transient,
-        string? key = null)
+        object? viewKey = null,
+        object? viewModelKey = null)
         where TView : class where TViewModel : class
         => services.RegisterPageCore<TView, TViewModel>(
-            key, (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1)), viewModelLifetime, viewLifetime);
+            (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1)), viewModelLifetime, viewLifetime, viewKey, viewModelKey);
 
     public static void RegisterWithLifetime<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TView,
@@ -195,11 +215,12 @@ public static class Extensions
         Func<IServiceProvider, TArg1, TArg2, TArg3, TView> func,
         ServiceLifetime viewModelLifetime = ServiceLifetime.Transient,
         ServiceLifetime viewLifetime = ServiceLifetime.Transient,
-        string? key = null)
+        object? viewKey = null,
+        object? viewModelKey = null)
         where TView : class where TViewModel : class
         => services.RegisterPageCore<TView, TViewModel>(
-            key, (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1), args.Resolve<TArg3>(2)),
-            viewModelLifetime, viewLifetime);
+            (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1), args.Resolve<TArg3>(2)),
+            viewModelLifetime, viewLifetime, viewKey, viewModelKey);
 
     public static void RegisterWithLifetime<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TView,
@@ -209,11 +230,12 @@ public static class Extensions
         Func<IServiceProvider, TArg1, TArg2, TArg3, TArg4, TView> func,
         ServiceLifetime viewModelLifetime = ServiceLifetime.Transient,
         ServiceLifetime viewLifetime = ServiceLifetime.Transient,
-        string? key = null)
+        object? viewKey = null,
+        object? viewModelKey = null)
         where TView : class where TViewModel : class
         => services.RegisterPageCore<TView, TViewModel>(
-            key, (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1), args.Resolve<TArg3>(2), args.Resolve<TArg4>(3)),
-            viewModelLifetime, viewLifetime);
+            (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1), args.Resolve<TArg3>(2), args.Resolve<TArg4>(3)),
+            viewModelLifetime, viewLifetime, viewKey, viewModelKey);
 
     public static void RegisterWithLifetime<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TView,
@@ -223,11 +245,12 @@ public static class Extensions
         Func<IServiceProvider, TArg1, TArg2, TArg3, TArg4, TArg5, TView> func,
         ServiceLifetime viewModelLifetime = ServiceLifetime.Transient,
         ServiceLifetime viewLifetime = ServiceLifetime.Transient,
-        string? key = null)
+        object? viewKey = null,
+        object? viewModelKey = null)
         where TView : class where TViewModel : class
         => services.RegisterPageCore<TView, TViewModel>(
-            key, (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1), args.Resolve<TArg3>(2), args.Resolve<TArg4>(3), args.Resolve<TArg5>(4)),
-            viewModelLifetime, viewLifetime);
+            (sp, args) => func(sp, args.Resolve<TArg1>(0), args.Resolve<TArg2>(1), args.Resolve<TArg3>(2), args.Resolve<TArg4>(3), args.Resolve<TArg5>(4)),
+            viewModelLifetime, viewLifetime, viewKey, viewModelKey);
 
     public static void RegisterWithLifetime<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TView,
@@ -235,29 +258,29 @@ public static class Extensions
         this IServiceCollection services,
         ServiceLifetime viewModelLifetime = ServiceLifetime.Transient,
         ServiceLifetime viewLifetime = ServiceLifetime.Transient,
-        string? key = null)
+        object? viewKey = null,
+        object? viewModelKey = null)
         where TView : class where TViewModel : class
         => services.RegisterPageCore<TView, TViewModel>(
-            key, ActivatorUtilities.CreateInstance<TView>, viewModelLifetime, viewLifetime);
+            ActivatorUtilities.CreateInstance<TView>, viewModelLifetime, viewLifetime, viewKey, viewModelKey);
 
     public static void Register<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TView,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TViewModel>(
-        this IServiceCollection services, string? key = null)
+        this IServiceCollection services, object? viewKey = null,
+        object? viewModelKey = null)
         where TView : class where TViewModel : class
         => services.RegisterWithLifetime<TView, TViewModel>(
-            ServiceLifetime.Singleton, ServiceLifetime.Singleton, key);
+            ServiceLifetime.Singleton, ServiceLifetime.Singleton, viewKey, viewModelKey);
 
     private static void RegisterViewModel<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TViewModel>(
         this IServiceCollection services,
+        object key,
         ServiceLifetime lifetime = ServiceLifetime.Singleton)
         where TViewModel : class
         => services.RegisterFactory<TViewModel>(
-            typeof(TViewModel), lifetime, ActivatorUtilities.CreateInstance<TViewModel>);
-
-    public static T GetViewModel<T>(this IServiceProvider provider, NavigableContext? context = null)
-        => provider.GetViewModel<T>(typeof(T), context);
+            key, lifetime, ActivatorUtilities.CreateInstance<TViewModel>);
 
     public static T GetViewModel<T>(this IServiceProvider provider, object key, NavigableContext? context = null)
         => (T)GetViewModel(provider, key, context);
@@ -271,7 +294,7 @@ public static class Extensions
             ?? throw new InvalidOperationException($"Factory for {key} returned null.");
     }
 
-    public static object GetView(this IServiceProvider provider, string key, object[] context)
+    public static object GetView(this IServiceProvider provider, object key, object[] context)
     {
         var factory = provider.GetKeyedService<Func<IServiceProvider, object[], object>>(key)
             ?? throw new InvalidOperationException($"No such view registered: {key}");
@@ -285,8 +308,8 @@ public static class Extensions
         context ??= new NavigableContext();
         var resolvedKey = context.Key ?? key;
 
-        if (resolvedKey is not string stringKey)
-            throw new InvalidOperationException($"GetContextFor requires a string key, got {resolvedKey?.GetType().Name ?? "null"}.");
+        if (resolvedKey is not object stringKey)
+            throw new InvalidOperationException($"GetContextFor requires a key, got {resolvedKey?.GetType().Name ?? "null"}.");
 
         var view = provider.GetView(stringKey, [.. context.ViewParameters.Select(v => v.value).ToArray() ?? []]);
         return view as IViewFor
@@ -302,10 +325,11 @@ public static class Extensions
                          "directly at the registration call site, so the trimmer already roots that " +
                          "type — including the interfaces it implements.")]
     public static IModalFor<TViewModel, TResult>? GetModalFor<TViewModel, TResult>(
-        this IServiceProvider provider, NavigableContext context)
+        this IServiceProvider provider, NavigableContext context,
+        object? viewKey = null)
         where TViewModel : ICloseableViewModel<TResult>
     {
-        var view = provider.GetContextFor(typeof(TViewModel).Name, context);
+        var view = provider.GetContextFor(viewKey ?? typeof(TViewModel).Name, context);
         if (view != null)
         {
             var modalInterface = view.GetType().GetInterfaces()

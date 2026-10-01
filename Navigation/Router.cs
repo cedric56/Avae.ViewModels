@@ -1,38 +1,4 @@
-﻿using System.Threading;
-
-namespace Avae.ViewModels;
-
-public interface IRouter
-{
-    bool CanGoBack { get; }
-    bool CanGoForward { get; }
-    Task<object?> BackAsync();
-    Task<object?> ForwardAsync();
-
-    Task<IViewFor?> GoTo(IViewFor view, object viewModel, NavigableContext? context = null);
-
-    Task<(IViewFor? view, object viewmodel)> GoToType(
-        Type viewModelType,
-        string? key = null,
-        NavigableContext? context = null);
-
-    /// <summary>
-    /// Navigates to the view associated with an existing view model instance.
-    /// </summary>
-    Task<(IViewFor? view, TViewModel viewmodel)> GoTo<TViewModel>(
-        TViewModel viewModel,
-        string? key = null,
-        NavigableContext? context = null)
-        where TViewModel : class;
-
-    /// <summary>
-    /// Navigates to the view associated with the specified view model type.
-    /// </summary>
-    Task<(IViewFor? view, TViewModel viewmodel)> GoTo<TViewModel>(
-        string? key = null,
-        NavigableContext? context = null)
-        where TViewModel : class;
-}
+﻿namespace Avae.ViewModels;
 
 /// <summary>
 /// Provides ViewModel-first navigation with history and lifecycle callbacks.
@@ -141,14 +107,15 @@ internal class Router(
         }
     }
 
-    private async Task<IViewFor?> GoToCore(
-        object key,
+    private async Task<IViewFor?> GoToCore(        
         object viewModel,
-        NavigableContext? context = null)
+        object viewKey,
+        NavigableContext? context = null,        
+        object? viewModelKey = null)
     {
-        var view = provider.GetContextFor(key, context)
+        var view = provider.GetContextFor(viewKey, context)
             ?? throw new InvalidOperationException(
-                $"Unable to resolve view for {key}.");
+                $"Unable to resolve view for {viewKey}.");
 
         return await GoTo(view, viewModel, context);
     }
@@ -158,18 +125,24 @@ internal class Router(
     /// </summary>
     public async Task<(IViewFor? view, object viewmodel)> GoToType(
         Type viewModelType,
-        string? key = null,
+        object? viewKey = null,
+        object? viewModelKey = null,
         NavigableContext? context = null)
     {
         ArgumentNullException.ThrowIfNull(viewModelType);
 
-        var viewModel = provider.GetViewModel(viewModelType, context);
+        var keys = ViewKey.GetKeys(viewKey, viewModelKey, viewModelType);
+        viewKey = keys.viewKey;
+        viewModelKey = keys.viewModelKey;
+
+        var viewModel = provider.GetViewModel(viewModelKey, context);
 
         return (
             await GoToCore(
-                key ?? viewModelType.Name,
                 viewModel,
-                context),
+                viewKey,
+                context,
+                viewModelKey),
             viewModel);
     }
 
@@ -178,17 +151,23 @@ internal class Router(
     /// </summary>
     public async Task<(IViewFor? view, TViewModel viewmodel)> GoTo<TViewModel>(
         TViewModel viewModel,
-        string? key = null,
+        object? viewKey = null,
+        object? viewModelKey = null,
         NavigableContext? context = null)
         where TViewModel : class
     {
         ArgumentNullException.ThrowIfNull(viewModel);
 
+        var keys = ViewKey.GetKeys(viewKey, viewModelKey, typeof(TViewModel));
+        viewKey = keys.viewKey;
+        viewModelKey = keys.viewModelKey;
+
         return (
             await GoToCore(
-                key ?? typeof(TViewModel).Name,
                 viewModel,
-                context),
+                viewKey,
+                context,
+                viewModelKey),
             viewModel);
     }
 
@@ -196,19 +175,25 @@ internal class Router(
     /// Navigates to the view associated with the specified view model type.
     /// </summary>
     public async Task<(IViewFor? view, TViewModel viewmodel)> GoTo<TViewModel>(
-        string? key = null,
+        object? viewKey = null,
+        object? viewModelKey = null,
         NavigableContext? context = null)
         where TViewModel : class
     {
-        var viewModel = provider.GetViewModel<TViewModel>(context)
+        var keys = ViewKey.GetKeys(viewKey, viewModelKey, typeof(TViewModel));
+        viewKey = keys.viewKey;
+        viewModelKey = keys.viewModelKey;
+
+        var viewModel = provider.GetViewModel<TViewModel>(viewModelKey, context)
             ?? throw new InvalidOperationException(
                 $"Unable to create {typeof(TViewModel).Name}.");
 
         return (
-            await GoToCore(
-                key ?? typeof(TViewModel).Name,
+            await GoToCore(                
                 viewModel,
-                context),
+                viewKey,
+                context,
+                viewModelKey),
             viewModel);
     }
 }

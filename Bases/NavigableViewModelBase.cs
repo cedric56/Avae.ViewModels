@@ -191,9 +191,9 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
                 _selectedNavigable = old;
             }
         }
-        catch (Exception ex)
+        catch
         {
-            Debug.WriteLine(ex);
+            throw;
         }
         finally
         {
