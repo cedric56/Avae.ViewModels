@@ -2,11 +2,28 @@
 
 Lightweight **ViewModel-first navigation** for the [Avae](https://github.com/cedric56/Avae.Abstractions) stack.
 
-Built on `Microsoft.Extensions.DependencyInjection` only (no UI framework dependency in the core package). Works with Avalonia, MAUI, Blazor, or any host that can resolve views from a map.
+The core package is built on `Microsoft.Extensions.DependencyInjection` and has no UI-framework dependency. It can be used from Avalonia, MAUI, Blazor, or another host that maps view-models to views.
 
-> **Status:** preview (`1.0.0-preview.1`) · **TFM:** `net11.0` · AOT-friendly
+> **Status:** preview (`1.0.0-preview.1`) · **Target framework:** `net11.0` · **AOT-compatible**
 
----
+## Features
+
+- ViewModel-first navigation with DI-based view resolution
+- Back/forward navigation history with a bounded history size
+- Navigation lifecycle hooks and navigation guards
+- Independent keyed navigation regions for multi-pane UIs
+- View/view-model construction with optional parameters
+- Modal/dialog result flow through `ICloseableViewModel<TResult>`
+- Optional CommunityToolkit.Mvvm source set
+- Optional ReactiveUI source set
+- Designed with trimming/AOT scenarios in mind
+
+## Requirements
+
+- .NET 11 SDK
+- `Microsoft.Extensions.DependencyInjection`
+
+The core package does not require a UI framework.
 
 ## Install
 
@@ -14,7 +31,9 @@ Built on `Microsoft.Extensions.DependencyInjection` only (no UI framework depend
 <PackageReference Include="Avae.ViewModels" Version="1.0.0-preview.1" />
 ```
 
-Optional CommunityToolkit-based base types:
+### Optional CommunityToolkit.Mvvm support
+
+Enable the `CommunityToolkit` feature in the consuming project:
 
 ```xml
 <PropertyGroup>
@@ -22,26 +41,42 @@ Optional CommunityToolkit-based base types:
 </PropertyGroup>
 ```
 
-(`build/Avae.ViewModels.targets` compiles `Community/**` and can pull `CommunityToolkit.Mvvm`.)
+This adds the CommunityToolkit-based source set and its `CommunityToolkit.Mvvm` dependency.
 
----
+### Optional ReactiveUI support
 
-## Concepts
+Enable the `ReactiveUI` feature:
+
+```xml
+<PropertyGroup>
+  <AvaeFeatures>;ReactiveUI;</AvaeFeatures>
+</PropertyGroup>
+```
+
+This adds the ReactiveUI-based source set and its `ReactiveUI` / `ReactiveUI.SourceGenerators` dependencies.
+
+Both features can be enabled when needed:
+
+```xml
+<PropertyGroup>
+  <AvaeFeatures>;CommunityToolkit;ReactiveUI;</AvaeFeatures>
+</PropertyGroup>
+```
+
+## Core concepts
 
 | Type | Role |
 |------|------|
-| **`Router`** | History stack, `GoTo` / `BackAsync` / `ForwardAsync`, lifecycle hooks |
-| **`IViewFor`** | View abstraction; holds `Context` (the view model) |
-| **`INavigable`** | Optional `CanNavigateAsync`, `OnNavigatedTo` / `OnNavigatedFrom` |
-| **`NavigableContext`** | Parameters for view / view-model construction |
-| **`ViewModelViewMap`** | Maps a key (default: view-model type name) → view type |
-| **`NavigableView`** | Menu/sidebar entry (display name, icon, target VM type) |
-| **`NavigableViewModelBase`** | Shell VM: list of navigables + current view |
-| **`ICloseableViewModel<T>`** | Modal / dialog result flow |
+| `Router` / `IRouter` | Navigation history, `GoTo`, `BackAsync`, `ForwardAsync`, and lifecycle transitions |
+| `IViewFor` | UI-independent view abstraction; exposes the current view-model through `Context` |
+| `INavigable` | Optional navigation guard and lifecycle callbacks |
+| `NavigableContext` | Parameters supplied while creating/navigating to a view or view-model |
+| `ViewModelViewMap` | Maps navigation keys to view types |
+| `NavigableView` | Menu/sidebar entry containing display metadata and a target view-model type |
+| `NavigableViewModelBase` | Shell view-model with navigable items and current view |
+| `ICloseableViewModel<TResult>` | Modal/dialog result contract |
 
-Navigation is **view-model first**: you navigate to a VM type (or instance); the framework resolves the matching view from DI.
-
----
+Navigation is **view-model first**: the application navigates to a view-model type or instance, and the framework resolves the corresponding view through DI.
 
 ## Quick start
 
@@ -56,36 +91,47 @@ services.AddSingleton<Router>();
 services.Register<HomeView, HomeViewModel>();
 services.Register<SettingsView, SettingsViewModel>();
 
-// Optional lifetimes + custom key
+// Optional lifetimes and a custom view key.
 services.RegisterWithLifetime<DetailView, DetailViewModel>(
     viewModelLifetime: ServiceLifetime.Transient,
     viewLifetime: ServiceLifetime.Transient,
-    key: "detail");
+    viewKey: "detail");
 ```
 
-Default key = `typeof(TViewModel).Name` (must match what `Router.GoTo` uses).
+`Register<TView, TViewModel>()` registers both the view and view-model as singletons.
+
+`RegisterWithLifetime<TView, TViewModel>()` lets you choose the view-model and view lifetimes. Its default lifetime for both is `Transient`.
+
+Unless explicitly overridden, the navigation key is the view-model type name, for example `DetailViewModel`.
 
 ### 2. Navigate
 
 ```csharp
 var router = sp.GetRequiredService<Router>();
 
-// By type (creates VM via DI)
+// Create the view-model through DI.
 var (view, vm) = await router.GoTo<HomeViewModel>();
 
-// Existing instance
+// Navigate using an existing instance.
 await router.GoTo(existingVm);
 
-// By runtime type
+// Navigate using a runtime type.
 await router.GoToType(typeof(SettingsViewModel));
 
-// With parameters
-await router.GoTo<DetailViewModel>(context: NavigableContext.Create()
-    .WithViewModelParameters(("id", 42))
-    .WithViewParameters(("title", "Detail")));
+// Pass construction/navigation parameters.
+await router.GoTo<DetailViewModel>(
+    context: NavigableContext.Create()
+        .WithViewModelParameters(("id", 42))
+        .WithViewParameters(("title", "Detail")));
 ```
 
-### 3. History
+A custom key can be supplied when the registered view-model key is not its type name:
+
+```csharp
+await router.GoTo<DetailViewModel>(key: "detail");
+```
+
+### 3. Navigate through history
 
 ```csharp
 if (router.CanGoBack)
@@ -97,13 +143,34 @@ if (router.CanGoForward)
 router.EraseHistory();
 ```
 
-`INavigable.CanNavigateAsync()` can cancel leave/enter. History size is capped (default 20 entries).
+The default history limit is 20 entries.
 
----
+## Navigation lifecycle
 
-## Multiple regions (Prism-like zones)
+Implement `INavigable` when a view-model needs to participate in navigation:
 
-Each region is a **keyed** `Router` singleton (independent history):
+```csharp
+public partial class HomeViewModel : INavigable
+{
+    public Task OnNavigatedTo(NavigableContext context)
+    {
+        // Read context.ViewModelParameters / context.Parameters as needed.
+        return Task.CompletedTask;
+    }
+
+    public Task OnNavigatedFrom(NavigableContext context)
+        => Task.CompletedTask;
+
+    public Task<bool> CanNavigateAsync()
+        => Task.FromResult(true); // false cancels leaving the current item
+}
+```
+
+`CanNavigateAsync()` is a guard for **leaving the current navigation item**. `OnNavigatedFrom` and `OnNavigatedTo` are invoked during transitions; views can implement `INavigable` as well, so both the view-model and view can receive lifecycle callbacks.
+
+## Multiple navigation regions
+
+Use keyed navigation regions when independent parts of the UI need independent navigation histories:
 
 ```csharp
 services.AddNavigationRegion("main");
@@ -116,14 +183,17 @@ await main.GoTo<HomeViewModel>();
 await side.GoTo<TocViewModel>();
 ```
 
-Do **not** register a single unkeyed `Router` if you need two panes — both would share one history.
+Each call to `AddNavigationRegion` creates a keyed singleton router with its own history.
 
----
+If an application needs two independent panes, do not resolve the same unkeyed `Router` singleton for both panes: that would intentionally share one navigation history.
 
-## Shell pattern (`NavigableViewModelBase`)
+## Shell pattern
+
+`NavigableViewModelBase` can be used for a shell that exposes a collection of navigation entries and the current view:
 
 ```csharp
-public partial class MainViewModel(Router router) : NavigableViewModelBase(router)
+public partial class MainViewModel(Router router)
+    : NavigableViewModelBase(router)
 {
     public override ObservableCollection<NavigableView> Navigables { get; } =
     [
@@ -133,99 +203,90 @@ public partial class MainViewModel(Router router) : NavigableViewModelBase(route
 }
 ```
 
-Bind UI:
+Typical bindings are:
 
 - `Navigables` → menu `ItemsSource`
-- `SelectedNavigable` → selection (drives `Router.GoTo`)
+- `SelectedNavigable` → selected navigation item
 - `CurrentView` → content host
 
-You can also use a plain `ObservableObject` + `Router` without inheriting the base class.
-
----
+A shell does not have to inherit from `NavigableViewModelBase`; a regular view-model can use `Router` directly.
 
 ## Modals
 
+Modal flows use `ICloseableViewModel<TResult>` and `IModalFor<TViewModel, TResult>`:
+
 ```csharp
 var result = await sp.ShowModalAsync<EditPersonViewModel, bool?>(
-    NavigableContext.Create().WithViewModelParameters(person));
+    NavigableContext.Create()
+        .WithViewModelParameters(person));
 ```
 
-Requires:
+The corresponding modal view must implement `IModalFor<TViewModel, TResult>` and provide `ShowModalAsync()`.
 
-- View model : `ICloseableViewModel<TResult>`
-- View : `IModalFor<TViewModel, TResult>` with `ShowModalAsync()`
+## Optional source sets
 
----
+The package can include source sets from the consuming application rather than imposing those frameworks on the core package.
 
-## Lifecycle (`INavigable`)
+### CommunityToolkit.Mvvm
 
-```csharp
-public partial class HomeViewModel : INavigable
-{
-    public Task OnNavigatedTo(NavigableContext context)
-    {
-        // read context.ViewModelParameters / Parameters
-        return Task.CompletedTask;
-    }
+With:
 
-    public Task OnNavigatedFrom(NavigableContext context) => Task.CompletedTask;
-
-    public Task<bool> CanNavigateAsync() => Task.FromResult(true); // false = cancel
-}
+```xml
+<AvaeFeatures>;CommunityToolkit;</AvaeFeatures>
 ```
 
-Views can implement `INavigable` as well; both VM and view receive the callbacks.
+the package includes the sources under `Community/`, such as CommunityToolkit-based observable/navigable view-model helpers.
 
----
+### ReactiveUI
 
-## CommunityToolkit optional sources
+With:
 
-With feature `CommunityToolkit`, types under `Community/` (e.g. `NavigableViewModel` using `[RelayCommand]` / `ObservableObject`) are compiled into the consumer.
+```xml
+<AvaeFeatures>;ReactiveUI;</AvaeFeatures>
+```
 
-Core package stays free of a hard dependency on CommunityToolkit.Mvvm.
-
----
+the package includes the sources under `ReactiveUI/`, including ReactiveUI-backed `NavigableViewModel` and closeable view-model helpers.
 
 ## Design notes
 
-- **DI-centric**: views and VMs created through keyed factories + `ActivatorUtilities`-style resolution via registered factories.
-- **AOT / trimming**: public APIs use `DynamicallyAccessedMembers` on register/get paths.
-- **No regions container** like Prism: multiple `Router` instances (keyed) cover multi-pane navigation.
-- **Host-agnostic**: `IViewFor` is implemented by Avalonia `UserControl`, MAUI pages, Blazor wrappers, etc. in host packages.
-
----
+- **DI-centric:** views and view-models are created through registered keyed factories.
+- **Host-agnostic:** `IViewFor` only requires a `Context` property; UI-specific adapters can implement it in the host application.
+- **Multiple regions:** independent keyed `Router` instances provide separate navigation histories without requiring a separate regions container.
+- **AOT/trimming:** registration and resolution APIs use `DynamicallyAccessedMembers` annotations where required for constructor discovery.
+- **Core dependency surface:** the core package depends on `Microsoft.Extensions.DependencyInjection`; CommunityToolkit and ReactiveUI support are opt-in.
 
 ## Project layout
 
-```
+```text
 Router.cs
-Extensions.cs              # Register*, GetViewModel, regions, modals
+Extensions.cs
 ViewModelViewMap.cs
+
 Bases/
   NavigableViewModelBase.cs
   RouterViewModelBase.cs
   NavigableView.cs
   NavigableContext.cs
   …
+
 Interfaces/
   INavigable.cs
   IViewFor.cs
   IModalFor.cs
   …
-Community/                 # optional (feature flag)
+
+Community/                 # optional: AvaeFeatures=CommunityToolkit
+ReactiveUI/                # optional: AvaeFeatures=ReactiveUI
 build/Avae.ViewModels.targets
 ```
 
----
+## Related projects
+
+- [Avae.Abstractions](https://github.com/cedric56/Avae.Abstractions) — Avae abstractions and samples
+- [Avae.Services](https://github.com/cedric56/Avae.Services) — dialogs and notification contracts
+- [CommunityToolkit.Mvvm](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) — optional MVVM helpers
+- [ReactiveUI](https://www.reactiveui.net/) — optional reactive MVVM support
 
 ## License
 
 MIT — see [LICENSE.txt](LICENSE.txt).
-
----
-
-## Related
-
-- [Avae.Abstractions](https://github.com/cedric56/Avae.Abstractions) — samples (Avalonia, MAUI, Blazor)
-- [Avae.Services](https://github.com/cedric56/Avae.Services) — dialogs, notifications contracts
-- [CommunityToolkit.Mvvm](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) — optional base types
