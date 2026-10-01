@@ -13,37 +13,52 @@ internal class DistributionImplementation : IDistribution
 
     public static Distribution Detect()
     {
-        if (!OperatingSystem.IsLinux())
-            return Distribution.Unknown;
+        if(OperatingSystem.IsAndroid())
+        {
+            if (OperatingSystem.IsAndroidVersionAtLeast(36)) return Distribution.Android16;
+            if (OperatingSystem.IsAndroidVersionAtLeast(35)) return Distribution.Android15;
+            if (OperatingSystem.IsAndroidVersionAtLeast(34)) return Distribution.Android14;
+            if (OperatingSystem.IsAndroidVersionAtLeast(33)) return Distribution.Android13;
+            if (OperatingSystem.IsAndroidVersionAtLeast(32)) return Distribution.Android12L;
+            if (OperatingSystem.IsAndroidVersionAtLeast(31)) return Distribution.Android12;
+            if (OperatingSystem.IsAndroidVersionAtLeast(30)) return Distribution.Android11;
+            if (OperatingSystem.IsAndroidVersionAtLeast(29)) return Distribution.Android10;
+            if (OperatingSystem.IsAndroidVersionAtLeast(28)) return Distribution.Android9;
+            if (OperatingSystem.IsAndroidVersionAtLeast(27)) return Distribution.Android8_1;
+            if (OperatingSystem.IsAndroidVersionAtLeast(26)) return Distribution.Android8;
+            if (OperatingSystem.IsAndroidVersionAtLeast(25)) return Distribution.Android7_1;
+            if (OperatingSystem.IsAndroidVersionAtLeast(24)) return Distribution.Android7;
+            if (OperatingSystem.IsAndroidVersionAtLeast(23)) return Distribution.Android6;
+            if (OperatingSystem.IsAndroidVersionAtLeast(22)) return Distribution.Android5_1;
+            if (OperatingSystem.IsAndroidVersionAtLeast(21)) return Distribution.Android5;
+        }
 
-        var osRelease = ReadOsRelease();
+        if (OperatingSystem.IsWindows())
+        {
+            if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return Distribution.Windows11;
+            if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) return Distribution.Windows10;
+            if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 10240)) return Distribution.Windows10;
+            if (OperatingSystem.IsWindowsVersionAtLeast(6, 3, 9600)) return Distribution.Windows81;
+            if (OperatingSystem.IsWindowsVersionAtLeast(6, 2, 9200)) return Distribution.Windows8;
+            if (OperatingSystem.IsWindowsVersionAtLeast(6, 1, 7600)) return Distribution.Windows7;
+            if (OperatingSystem.IsWindowsVersionAtLeast(6, 0)) return Distribution.Vista;
+            if (OperatingSystem.IsWindowsVersionAtLeast(5, 1)) return Distribution.WindowsXP;
+        }
 
-        var id = Get(osRelease, "ID");
-        var idLike = Get(osRelease, "ID_LIKE");
-
-        if (Matches(id, idLike, "ubuntu"))
-            return Distribution.Ubuntu;
-
-        if (Matches(id, idLike, "fedora"))
-            return Distribution.Fedora;
-
-        if (Matches(id, idLike, "arch"))
-            return Distribution.ArchLinux;
-
-        if (Matches(id, idLike, "debian"))
-            return Distribution.Debian;
-
-        if (Matches(id, idLike, "opensuse", "opensuse-leap", "opensuse-tumbleweed", "suse"))
-            return Distribution.OpenSUSE;
-
-        if (Matches(id, idLike, "linuxmint", "mint"))
-            return Distribution.LinuxMint;
-
-        if (Matches(id, idLike, "manjaro"))
-            return Distribution.Manjaro;
-
-        if (Matches(id, idLike, "pop", "pop_os"))
-            return Distribution.PopOS;
+        if (OperatingSystem.IsLinux())
+        {
+            var osRelease = ReadOsRelease();
+            var id = Get(osRelease, "ID");
+            var idLike = Get(osRelease, "ID_LIKE");
+            if (Matches(id, idLike, "ubuntu")) return Distribution.Ubuntu;
+            if (Matches(id, idLike, "fedora")) return Distribution.Fedora;
+            if (Matches(id, idLike, "arch")) return Distribution.ArchLinux;
+            if (Matches(id, idLike, "debian")) return Distribution.Debian;
+            if (Matches(id, idLike, "opensuse", "opensuse-leap", "opensuse-tumbleweed", "suse")) return Distribution.OpenSUSE;
+            if (Matches(id, idLike, "linuxmint", "mint")) return Distribution.LinuxMint;
+            if (Matches(id, idLike, "manjaro")) return Distribution.Manjaro;
+            if (Matches(id, idLike, "pop", "pop_os")) return Distribution.PopOS;
+        }
 
         return Distribution.Unknown;
     }
@@ -121,6 +136,29 @@ public readonly struct Distribution : IEquatable<Distribution>
     public static Distribution Manjaro { get; } = new Distribution(nameof(Manjaro));
     public static Distribution PopOS { get; } = new Distribution(nameof(PopOS));
     public static Distribution Unknown { get; } = new Distribution(nameof(Unknown));
+    public static Distribution Windows11 { get; } = new Distribution(nameof(Windows11));
+    public static Distribution Windows10 { get; } = new Distribution(nameof(Windows10));
+    public static Distribution Vista { get; } = new Distribution(nameof(Vista));
+    public static Distribution WindowsXP { get; } = new Distribution(nameof(WindowsXP));
+    public static Distribution Windows81 { get; } = new Distribution(nameof(Windows81));
+    public static Distribution Windows8 { get; } = new Distribution(nameof(Windows8));
+    public static Distribution Windows7 { get; } = new Distribution(nameof(Windows7));
+    public static Distribution Android16 { get; } = new Distribution(nameof(Android16));
+    public static Distribution Android15 { get; } = new Distribution(nameof(Android15));
+    public static Distribution Android14 { get; } = new Distribution(nameof(Android14));
+    public static Distribution Android13 { get; } = new Distribution(nameof(Android13));
+    public static Distribution Android12L { get; } = new Distribution(nameof(Android12L));
+    public static Distribution Android12 { get; } = new Distribution(nameof(Android12));
+    public static Distribution Android11 { get; } = new Distribution(nameof(Android11));
+    public static Distribution Android10 { get; } = new Distribution(nameof(Android10));
+    public static Distribution Android9 { get; } = new Distribution(nameof(Android9));
+    public static Distribution Android8_1 { get; } = new Distribution(nameof(Android8_1));
+    public static Distribution Android8 { get; } = new Distribution(nameof(Android8));
+    public static Distribution Android7_1 { get; } = new Distribution(nameof(Android7_1));
+    public static Distribution Android7 { get; } = new Distribution(nameof(Android7));
+    public static Distribution Android6 { get; } = new Distribution(nameof(Android6));
+    public static Distribution Android5_1 { get; } = new Distribution(nameof(Android5_1));
+    public static Distribution Android5 { get; } = new Distribution(nameof(Android5));
 
     internal Distribution(string distribution)
     {

@@ -31,8 +31,39 @@ internal class DesktopImplementation : IDesktop
             if (combined.Contains("CINNAMON")) return Desktop.Cinnamon;
             if (combined.Contains("UNITY")) return Desktop.Unity;
             if (combined.Contains("LXDE")) return Desktop.LXDE;
+            if (IsWsl()) return Desktop.WSL;
         }
         return Desktop.Unknown;
+    }
+
+    private static bool IsWsl()
+    {
+        // Fast check: Environment variable automatically injected by WSL
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WSL_DISTRO_NAME")) ||
+            !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WSL_INTEROP")))
+        {
+            return true;
+        }
+
+        // Fallback check: Read Linux kernel OS release info
+        try
+        {
+            if (File.Exists("/proc/sys/kernel/osrelease"))
+            {
+                var versionText = File.ReadAllText("/proc/sys/kernel/osrelease");
+                if (versionText.Contains("microsoft", StringComparison.OrdinalIgnoreCase) ||
+                    versionText.Contains("wsl", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            // Ignore I/O or permission errors
+        }
+
+        return false;
     }
 }
 
