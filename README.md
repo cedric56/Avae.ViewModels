@@ -289,3 +289,21 @@ build/Avae.ViewModels.targets
 ## License
 
 MIT — see [LICENSE.txt](LICENSE.txt).
+
+
+## Source audit (October 2026)
+
+A source-level audit of the current repository identified the following items for follow-up:
+
+1. **Factory registration shape** — RegisterFactory uses AddKeyedSingleton with a delegate shape that does not match the .NET 11 keyed-service factory overload; see issue #1.
+2. **Scoped lifetime isolation** — the Scoped view factory currently relies on ScopedViewCache, but that cache is registered as a singleton; see issue #2.
+3. **Async navigation selection** — NavigableViewModelBase starts selection changes without awaiting or observing the returned task; see issue #3.
+4. **CommunityToolkit commands** — close commands use async RelayCommand callbacks; see issue #4.
+5. **Lifecycle failure semantics** — a failing lifecycle callback can leave callbacks partially executed while history remains unchanged; see issue #5.
+6. **Automated coverage** — the repository has package-version entries for test tooling but no test project in the current tree; see issue #6.
+
+These findings are intentionally tracked separately from documentation so production-code changes can be reviewed independently.
+
+## Validation
+
+The audit was performed against the repository source through GitHub. A local shallow clone was also attempted, but the execution environment could not resolve github.com, so dotnet build/dotnet test could not be run locally. The issues above should therefore be validated with CI or a local .NET 11 environment before merging production fixes.
