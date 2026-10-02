@@ -22,26 +22,40 @@ public static class Extensions
     }
 
     /// <summary>
-    /// Registers an independent navigation region: a <see cref="Router"/> resolved as a keyed singleton
-    /// under <paramref name="key"/>. Use this instead of registering <see cref="Router"/> as a plain,
-    /// unkeyed singleton whenever a view model needs more than one independent navigation area (e.g. a
-    /// main pane and a side pane) — resolving an unkeyed singleton twice returns the *same* instance,
-    /// silently merging what were meant to be two separate navigation histories.
+    /// Registers an independent navigation region: a <see cref="Router"/> resolved as a keyed
+    /// service under <paramref name="key"/>. Use this instead of registering <see cref="Router"/>
+    /// as a plain, unkeyed singleton whenever a view model needs more than one independent
+    /// navigation area (e.g. a main pane and a side pane) — resolving an unkeyed singleton twice
+    /// returns the *same* instance, silently merging what were meant to be two separate
+    /// navigation histories.
     /// </summary>
     /// <param name="key">The region's identifier, e.g. "main" or "side". Resolve it later with <see cref="GetRegion"/>.</param>
-    public static IServiceCollection AddNavigationRegion(this IServiceCollection services, string key)
+    /// <param name="lifetime">
+    /// <see cref="ServiceLifetime.Scoped"/> (the default) gives each DI scope — each Blazor
+    /// Server circuit — its own independent <see cref="Router"/>/history/cache chain, which is
+    /// required on Server since every circuit shares the same process. On WASM/MAUI there is
+    /// only ever one scope for the app's lifetime, so <see cref="ServiceLifetime.Scoped"/>
+    /// behaves identically to <see cref="ServiceLifetime.Singleton"/> there — pass Singleton
+    /// explicitly only if you specifically need the region's state to survive across scopes
+    /// your own app creates for other reasons.
+    /// </param>
+    public static IServiceCollection AddNavigationRegion(
+        this IServiceCollection services, string key, ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        services.AddKeyedSingleton<NavigationHistory>(key);
-        services.AddKeyedSingleton<NavigationGate>(key);
-        services.AddKeyedSingleton<NavigationLifecycle>(key);
-        services.AddKeyedSingleton<IRouter, Router>(key, (sp, k) => 
+
+        services.Add(new ServiceDescriptor(typeof(NavigationHistory), key, (sp, k) => new NavigationHistory(), lifetime));
+        services.Add(new ServiceDescriptor(typeof(NavigationGate), key, (sp, k) => new NavigationGate(), lifetime));
+        services.Add(new ServiceDescriptor(typeof(NavigationLifecycle), key, (sp, k) => new NavigationLifecycle(), lifetime));
+        services.Add(new ServiceDescriptor(typeof(IRouter), key, (sp, k) =>
             new Router(
-            sp.GetRequiredKeyedService<NavigationHistory>(k),
-            sp.GetRequiredKeyedService<NavigationGate>(k),
-            sp.GetRequiredKeyedService<NavigationLifecycle>(k),
-            sp));
+                sp.GetRequiredKeyedService<NavigationHistory>(k),
+                sp.GetRequiredKeyedService<NavigationGate>(k),
+                sp.GetRequiredKeyedService<NavigationLifecycle>(k),
+                sp),
+            lifetime));
+
         return services;
     }
 
@@ -52,19 +66,15 @@ public static class Extensions
     public static IRouter GetRegion(this IServiceProvider provider, string key)
         => provider.GetRequiredKeyedService<IRouter>(key);
 
-
-    static T GetOrAdd<T>(this IServiceCollection services) where T : class, new()
+    /// <summary>
+    /// Registers <typeparamref name="T"/> as a real DI-scoped service, once, if it hasn't
+    /// been registered already. Use this for state that must not leak between circuits/scopes (e.g.
+    /// <see cref="ScopedViewCache"/>);
+    /// </summary>
+    static void EnsureScoped<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(this IServiceCollection services) where T : class
     {
-        var existing = services
-            .FirstOrDefault(d => d.ServiceType == typeof(T))
-            ?.ImplementationInstance as T;
-
-        if (existing is not null)
-            return existing;
-
-        var map = new T();
-        services.AddSingleton<T>(map);
-        return map;
+        if (!services.Any(d => d.ServiceType == typeof(T)))
+            services.AddScoped<T>();
     }
 
     public static Task<TResult?> ShowModalAsync<
@@ -97,6 +107,17 @@ public static class Extensions
     => services.RegisterPageCore<TView, TViewModel>(
         (sp, args) => func(sp), viewModelLifetime, viewLifetime, viewKey, viewModelKey);
 
+    /// <summary>
+    /// Registers <paramref name="create"/> as a keyed <em>instance</em>: the resulting
+    /// <c>Func&lt;IServiceProvider, object[], object&gt;</c> IS the keyed service itself (see the
+    /// <c>AddKeyedSingleton&lt;TService&gt;(key, TService instance)</c> overload — not the
+    /// <c>Func&lt;IServiceProvider, object?, TService&gt;</c> factory overload). This is
+    /// deliberate: callers (<see cref="GetViewModel(IServiceProvider, object, NavigableContext?)"/>,
+    /// <see cref="GetView"/>) invoke the returned delegate themselves, passing whatever
+    /// <see cref="IServiceProvider"/> and arguments they have at hand — the <c>sp</c>/<c>parameters</c>
+    /// below are the delegate's own parameters, supplied per call, never captured from a
+    /// DI-resolved registration-time provider.
+    /// </summary>
     private static void RegisterFactory<T>(
         this IServiceCollection services,
         object key,
@@ -104,36 +125,36 @@ public static class Extensions
         Func<IServiceProvider, object[], T> create)
         where T : class
     {
-        var cache = services.GetOrAdd<ScopedViewCache>();
+        services.EnsureScoped<ScopedViewCache>();
 
-        switch (lifetime)
+        Func<IServiceProvider, object[], object> factory = lifetime switch
         {
-            case ServiceLifetime.Singleton:
-                {
-                    T? cached = null;
-                    var gate = new object();
-                    services.AddKeyedSingleton<Func<IServiceProvider, object[], object>>(key, (sp, parameters) =>
-                    {
-                        if (cached is not null) return cached;
-                        lock (gate) { return cached ??= create(sp, parameters); }
-                    });
-                    break;
-                }
+            ServiceLifetime.Singleton => CreateSingletonFactory(create),
+            // Resolve the cache from `sp` — the per-call provider the caller (GetViewModel/
+            // GetView) passes in — NOT from a cache instance captured once at registration
+            // time. ScopedViewCache is now AddScoped, so this returns the current scope's own
+            // cache: one per circuit on Blazor Server, disposed with that circuit, instead of
+            // one process-wide dictionary shared by every user.
+            ServiceLifetime.Scoped => (sp, parameters) =>
+                sp.GetRequiredService<ScopedViewCache>().GetOrCreate(key, () => create(sp, parameters)),
+            ServiceLifetime.Transient => (sp, parameters) => create(sp, parameters),
+            _ => throw new ArgumentOutOfRangeException(nameof(lifetime), lifetime, null),
+        };
 
-            case ServiceLifetime.Scoped:
-                services.AddKeyedSingleton<Func<IServiceProvider, object[], object>>(key, (sp, parameters) =>
-                {
-                    return cache.GetOrCreate(key, () => create(sp, parameters));
-                });
-                break;
+        services.AddKeyedSingleton(key, factory);
+    }
 
-            case ServiceLifetime.Transient:
-                services.AddKeyedSingleton<Func<IServiceProvider, object[], object>>(key, create);
-                break;
-
-            default:
-                throw new ArgumentOutOfRangeException(nameof(lifetime), lifetime, null);
-        }
+    private static Func<IServiceProvider, object[], object> CreateSingletonFactory<T>(
+        Func<IServiceProvider, object[], T> create)
+        where T : class
+    {
+        T? cached = null;
+        var gate = new object();
+        return (sp, parameters) =>
+        {
+            if (cached is not null) return cached;
+            lock (gate) { return cached ??= create(sp, parameters); }
+        };
     }
 
     public static void RegisterWithLifetime(
