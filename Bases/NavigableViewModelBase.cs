@@ -123,6 +123,9 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
 
     private NavigableView? _selectedNavigable;
 
+    private readonly SemaphoreSlim _selectionGate = new(1, 1);
+    private int _selectionVersion;
+
     public NavigableView? SelectedNavigable
     {
         get => _selectedNavigable;
@@ -133,7 +136,11 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
             var old = _selectedNavigable;
             _selectedNavigable = value;
 
-            _ = OnSelectedNavigableChangedAsync(value, old);
+            // Fire-and-forget for XAML two-way binding (the setter itself can't be async).
+            // SelectAsync below does the actual serialized, version-guarded work; callers that
+            // need to await completion or observe failure should call SelectAsync directly
+            // instead of going through this property.
+            _ = SelectAsync(value, old);
         }
     }
 
@@ -151,7 +158,35 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
         if (initialize)
         {
             _selectedNavigable = Navigables.FirstOrDefault();
-            _ = OnSelectedNavigableChangedAsync(_selectedNavigable, null);
+            _ = SelectAsync(_selectedNavigable, null);
+        }
+    }
+
+    /// <summary>
+    /// Selects <paramref name="value"/> and awaits the resulting navigation. Serialized against
+    /// every other call to <see cref="SelectAsync"/> (including ones triggered by the
+    /// <see cref="SelectedNavigable"/> setter), and version-guarded so that if a newer selection
+    /// is requested while this one is still in flight (e.g. waiting on the gate, or awaiting
+    /// <see cref="GetView"/>), this call's result is discarded rather than applied out of order
+    /// — the newer selection always wins, regardless of which one actually finishes first.
+    /// </summary>
+    public async Task SelectAsync(NavigableView? value, NavigableView? old = null)
+    {
+        var version = Interlocked.Increment(ref _selectionVersion);
+
+        await _selectionGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            // A newer selection was requested while we were waiting for the gate — our work
+            // is already stale before it even started, so don't touch any state.
+            if (version != _selectionVersion)
+                return;
+
+            await OnSelectedNavigableChangedAsync(value, old, version).ConfigureAwait(false);
+        }
+        finally
+        {
+            _selectionGate.Release();
         }
     }
 
@@ -173,8 +208,15 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
     /// Handles a change to <see cref="SelectedNavigable"/> by resolving (or creating) the associated
     /// view/view-model pair, updating <see cref="CurrentView"/>, and recording navigation history.
     /// </summary>
-    /// <param name="value">The newly selected navigable item, or <see langword="null"/> if none is selected.</param>    
-    public virtual async Task OnSelectedNavigableChangedAsync(NavigableView? value, NavigableView? old)
+    /// <param name="value">The newly selected navigable item, or <see langword="null"/> if none is selected.</param>
+    /// <param name="old">The previously selected item, restored on failure.</param>
+    /// <param name="version">
+    /// The selection version this call is running under, as assigned by <see cref="SelectAsync"/>.
+    /// Checked again after the awaited work completes so that a result superseded by a newer
+    /// selection (requested while this one was still awaiting <see cref="GetView"/>) is discarded
+    /// instead of overwriting the newer selection's already-applied state.
+    /// </param>
+    public virtual async Task OnSelectedNavigableChangedAsync(NavigableView? value, NavigableView? old, int version = 0)
     {
         try
         {
@@ -182,7 +224,14 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
                 return;
 
             var view = await GetView(value);
-            if(view != null)
+
+            // A newer selection superseded this one while GetView was in flight — its result
+            // has already been applied (or is about to be), so don't overwrite it with a
+            // slower, now-stale result.
+            if (version != 0 && version != _selectionVersion)
+                return;
+
+            if (view != null)
             {
                 CurrentView = view;
             }
@@ -193,13 +242,19 @@ public abstract partial class NavigableViewModelBase : RouterViewModelBase, IDis
         }
         catch
         {
+            if (version == 0 || version == _selectionVersion)
+                _selectedNavigable = old;
+
             throw;
         }
         finally
         {
-            RaiseCanExecutesChanged();
-            NotifyPropertyChanged(nameof(SelectedNavigable));
-        }   
+            if (version == 0 || version == _selectionVersion)
+            {
+                RaiseCanExecutesChanged();
+                NotifyPropertyChanged(nameof(SelectedNavigable));
+            }
+        }
     }
 
     protected virtual async Task<IViewFor?> GetView(NavigableView value)
