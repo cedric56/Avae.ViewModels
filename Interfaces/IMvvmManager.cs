@@ -10,5 +10,7 @@ public interface IMvvmManager
 
     IViewFor? CurrentView { get; set; }
 
+    EventHandler<IViewFor?>? CurrentViewChanged { get; set; }
+
     Task OnNavigableChanged(NavigableView? value);
 }
