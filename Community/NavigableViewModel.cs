@@ -9,8 +9,8 @@ namespace Avae.ViewModels;
 public abstract partial class CloseableViewModel<TResult>
     : CloseableViewModelBase<TResult>
 {
-    private ICommand? _closeCommand = null;
-    public override ICommand CloseCommand => _closeCommand ??= new RelayCommand(async () =>
+    private IAsyncRelayCommand? _closeCommand = null;
+    public override ICommand CloseCommand => _closeCommand ??= new AsyncRelayCommand(async () =>
     {
         if (await CanClose())
             await Close(default);
@@ -49,8 +49,8 @@ NavigableViewModelBase(router, initialize)
 public abstract partial class NavigableViewModel<TResult>(IRouter router, bool initialize = true) :
     NavigableViewModelBase<TResult>(router, initialize)
 {
-    private ICommand? _closeCommand = null;
-    public override ICommand CloseCommand => _closeCommand ??= new RelayCommand(async () =>
+    private IAsyncRelayCommand? _closeCommand = null;
+    public override ICommand CloseCommand => _closeCommand ??= new AsyncRelayCommand(async () =>
     {
         if (await CanClose())
             await Close(default);
