@@ -136,13 +136,10 @@ public static class Extensions
             // cache: one per circuit on Blazor Server, disposed with that circuit, instead of
             // one process-wide dictionary shared by every user.
             ServiceLifetime.Scoped => (sp, parameters) =>
-            {
-                //using 
-                var scope = sp.CreateScope();
-                return scope.ServiceProvider
-                            .GetRequiredService<ScopedViewCache>()
-                            .GetOrCreate(key, () => create(scope.ServiceProvider, parameters));
-            },
+                sp.GetRequiredService<ScopedViewCache>()
+          .GetOrCreate(
+              key,
+              () => create(sp, parameters)),
             ServiceLifetime.Transient => (sp, parameters) => create(sp, parameters),
             _ => throw new ArgumentOutOfRangeException(nameof(lifetime), lifetime, null),
         };
