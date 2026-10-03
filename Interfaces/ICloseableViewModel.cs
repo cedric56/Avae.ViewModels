@@ -13,8 +13,6 @@ public interface ICloseableViewModel<TResult>
     Task Close(TResult? value);
 }
 
-
-public interface IViewModelErrorInfo : IDataErrorInfo
 {
     void RaiseColumnErrorChanged(string name = "Item");
 }
