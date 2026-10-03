@@ -1,5 +1,4 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Windows.Input;
 
 namespace Avae.ViewModels;
@@ -11,8 +10,4 @@ public interface ICloseableViewModel<TResult>
     ICommand? CloseCommand { get; }
     event EventHandler<TResult?>? CloseRequested;
     Task Close(TResult? value);
-}
-
-{
-    void RaiseColumnErrorChanged(string name = "Item");
 }
